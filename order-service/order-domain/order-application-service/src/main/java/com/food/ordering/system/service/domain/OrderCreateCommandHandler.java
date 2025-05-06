@@ -13,6 +13,7 @@ import com.food.ordering.system.order.service.domain.exception.OrderDomainExcept
 import com.food.ordering.system.service.domain.dto.create.CreateOrderCommand;
 import com.food.ordering.system.service.domain.dto.create.CreateOrderResponse;
 import com.food.ordering.system.service.domain.mapper.OrderDataMapper;
+import com.food.ordering.system.service.domain.ports.output.message.publisher.payment.OrderCreatedPaymentRequestMessagePublisher;
 import com.food.ordering.system.service.domain.ports.output.repository.CustomerRepository;
 import com.food.ordering.system.service.domain.ports.output.repository.OrderRepository;
 import com.food.ordering.system.service.domain.ports.output.repository.RestaurantRepository;
@@ -26,80 +27,29 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 public class OrderCreateCommandHandler {
-  private final OrderDomainService orderDomainService;
-
-  private final OrderRepository orderRepository;
-
-  private final CustomerRepository customerRepository;
-
-  private final RestaurantRepository restaurantRepository;
+  private final OrderCreateHelper orderCreateHelper;
 
   private final OrderDataMapper orderDataMapper;
 
+  private final OrderCreatedPaymentRequestMessagePublisher orderCreatedPaymentRequestMessagePublisher;
+
   public OrderCreateCommandHandler (
-    OrderDomainService orderDomainService,
-    OrderRepository orderRepository,
-    CustomerRepository customerRepository,
-    RestaurantRepository restaurantRepository,
-    OrderDataMapper orderDataMapper
+    OrderCreateHelper orderCreateHelper,
+    OrderDataMapper orderDataMapper,
+    OrderCreatedPaymentRequestMessagePublisher orderCreatedPaymentRequestMessagePublisher
   ) {
-    this.orderDomainService = orderDomainService;
-    this.orderRepository = orderRepository;
-    this.customerRepository = customerRepository;
-    this.restaurantRepository = restaurantRepository;
+    this.orderCreateHelper = orderCreateHelper;
     this.orderDataMapper = orderDataMapper;
+    this.orderCreatedPaymentRequestMessagePublisher = orderCreatedPaymentRequestMessagePublisher;
   }
 
-  @Transactional
   public CreateOrderResponse createOrder (CreateOrderCommand createOrderCommand) {
-    checkCustomer(createOrderCommand.getCustomerId());
+    OrderCreatedEvent orderCreatedEvent = orderCreateHelper.persistOrder(createOrderCommand);
 
-    Restaurant restaurant = checkRestaurant(createOrderCommand);
-    Order order = orderDataMapper.createOrderCommandToOrder(createOrderCommand);
+    log.info("Order is created with id: {}", orderCreatedEvent.getOrder().getId().getValue());
 
-    OrderCreatedEvent orderCreatedEvent = orderDomainService.validateAndInitiateOrder(order, restaurant);
+    orderCreatedPaymentRequestMessagePublisher.publish(orderCreatedEvent);
 
-    Order createdOrder = saveOrder(order);
-
-    log.info("Order Created with id: {}", createdOrder.getId().getValue());
-
-    return orderDataMapper.orderToCreateOrderResponse(createdOrder);
-  }
-
-  private Restaurant checkRestaurant (CreateOrderCommand createOrderCommand) {
-    Restaurant restaurant = orderDataMapper.createOrderCommandTiRestaurant(createOrderCommand);
-
-    Optional<Restaurant> optionalRestaurant = restaurantRepository.findRestaurantInformation(restaurant);
-
-    if (optionalRestaurant.isEmpty()) {
-      log.warn("Could not find restaurant with restaurant id: {}", restaurant.getId());
-
-      throw new OrderDomainException("Could not find restaurant with restaurant id: " + restaurant.getId());
-    }
-
-    return optionalRestaurant.get();
-  }
-
-  private void checkCustomer (UUID customerId) {
-    Optional<Customer> customer = customerRepository.findCustomer(customerId);
-
-    if (customer.isEmpty()) {
-      log.warn("Could not find customer with id: {}", customerId);
-
-      throw new OrderDomainException("Could not find customer with id: " + customerId);
-    }
-  }
-
-  private Order saveOrder (Order order) {
-    Order orderResult = orderRepository.save(order);
-
-    if (orderResult == null) {
-      log.error("Could not save order");
-      throw new OrderDomainException("Could not save order");
-    }
-
-    log.info("Order is saved with id: {}", orderResult.getId().getValue());
-
-    return order;
+    return orderDataMapper.orderToCreateOrderResponse(orderCreatedEvent.getOrder());
   }
 }
