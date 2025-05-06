@@ -2,6 +2,7 @@ package com.food.ordering.system.service.domain;
 
 
 import java.util.*;
+import org.springframework.context.*;
 import org.springframework.stereotype.*;
 import org.springframework.transaction.annotation.*;
 import com.food.ordering.system.order.service.domain.OrderDomainService;
@@ -36,18 +37,22 @@ public class OrderCreateCommandHandler {
 
   private final OrderDataMapper orderDataMapper;
 
+  private final ApplicationDomainEventPublisher applicationDomainEventPublisher;
+
   public OrderCreateCommandHandler (
     OrderDomainService orderDomainService,
     OrderRepository orderRepository,
     CustomerRepository customerRepository,
     RestaurantRepository restaurantRepository,
-    OrderDataMapper orderDataMapper
+    OrderDataMapper orderDataMapper,
+    ApplicationDomainEventPublisher applicationDomainEventPublisher
   ) {
     this.orderDomainService = orderDomainService;
     this.orderRepository = orderRepository;
     this.customerRepository = customerRepository;
     this.restaurantRepository = restaurantRepository;
     this.orderDataMapper = orderDataMapper;
+    this.applicationDomainEventPublisher = applicationDomainEventPublisher;
   }
 
   @Transactional
@@ -62,6 +67,8 @@ public class OrderCreateCommandHandler {
     Order createdOrder = saveOrder(order);
 
     log.info("Order Created with id: {}", createdOrder.getId().getValue());
+
+    applicationDomainEventPublisher.publish(orderCreatedEvent);
 
     return orderDataMapper.orderToCreateOrderResponse(createdOrder);
   }
