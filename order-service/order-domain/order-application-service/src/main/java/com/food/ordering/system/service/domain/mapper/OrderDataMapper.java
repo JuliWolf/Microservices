@@ -15,6 +15,7 @@ import com.food.ordering.system.order.service.domain.valueObject.StreetAddress;
 import com.food.ordering.system.service.domain.dto.create.CreateOrderCommand;
 import com.food.ordering.system.service.domain.dto.create.CreateOrderResponse;
 import com.food.ordering.system.service.domain.dto.create.OrderAddress;
+import com.food.ordering.system.service.domain.dto.track.TrackOrderResponse;
 
 /**
  * @author juliwolf
@@ -43,10 +44,19 @@ public class OrderDataMapper {
       .build();
   }
 
-  public CreateOrderResponse orderToCreateOrderResponse (Order order) {
+  public CreateOrderResponse orderToCreateOrderResponse (Order order, String message) {
     return CreateOrderResponse.builder()
       .orderTrackingId(order.getTrackingId().getValue())
       .orderStatus(order.getOrderStatus())
+      .message(message)
+      .build();
+  }
+
+  public TrackOrderResponse orderToTrackOrderResponse (Order order) {
+    return TrackOrderResponse.builder()
+      .orderTrackingId(order.getTrackingId().getValue())
+      .orderStatus(order.getOrderStatus())
+      .failureMessages(order.getFailureMessages())
       .build();
   }
 
