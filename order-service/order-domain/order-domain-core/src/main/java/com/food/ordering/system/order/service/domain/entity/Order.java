@@ -2,7 +2,6 @@ package com.food.ordering.system.order.service.domain.entity;
 
 
 import java.util.*;
-import java.util.stream.*;
 import com.food.ordering.system.domain.entity.AggregateRoot;
 import com.food.ordering.system.domain.valueObject.*;
 import com.food.ordering.system.order.service.domain.exception.OrderDomainException;
@@ -24,6 +23,8 @@ public class Order extends AggregateRoot<OrderId> {
   private TrackingId trackingId;
   private OrderStatus orderStatus;
   private List<String> failureMessages;
+
+  public static final String FAILURE_MESSAGE_DELIMETER = ", ";
 
   private Order (Builder builder) {
     super.setId(builder.orderId);
@@ -185,7 +186,7 @@ public class Order extends AggregateRoot<OrderId> {
       return new Builder();
     }
 
-    public Builder id (OrderId val) {
+    public Builder orderId (OrderId val) {
       orderId = val;
       return this;
     }
