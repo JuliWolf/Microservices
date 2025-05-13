@@ -17,13 +17,13 @@ import lombok.Getter;
 @Builder
 @AllArgsConstructor
 public class RestaurantApprovalResponse {
-  private String id;
+  private UUID id;
 
-  private String sagaId;
+  private UUID sagaId;
 
-  private String orderId;
+  private UUID orderId;
 
-  private String restaurantId;
+  private UUID restaurantId;
 
   private Instant createdAt;
 

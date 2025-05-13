@@ -17,15 +17,15 @@ import lombok.Getter;
 @Builder
 @AllArgsConstructor
 public class PaymentResponse {
-  private String id;
+  private UUID id;
 
-  private String sagaId;
+  private UUID sagaId;
 
-  private String orderId;
+  private UUID orderId;
 
-  private String paymentId;
+  private UUID paymentId;
 
-  private String customerId;
+  private UUID customerId;
 
   private BigDecimal price;
 
