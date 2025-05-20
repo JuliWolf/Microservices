@@ -13,14 +13,14 @@ import com.food.ordering.system.order.service.domain.event.OrderPaidEvent;
 import com.food.ordering.system.order.service.domain.exception.OrderDomainException;
 import lombok.extern.slf4j.Slf4j;
 
+import static com.food.ordering.system.domain.DomainConstants.UTC;
+
 /**
  * @author juliwolf
  */
 
 @Slf4j
 public class OrderDomainServiceImpl implements OrderDomainService {
-  private static final String UTC = "UTC";
-
   @Override
   public OrderCreatedEvent validateAndInitiateOrder (Order order, Restaurant restaurant) {
     validateRestaurant(restaurant);
