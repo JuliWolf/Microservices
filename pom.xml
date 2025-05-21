@@ -83,6 +83,11 @@
                 <artifactId>payment-domain-core</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>com.food.ordering.system</groupId>
+                <artifactId>payment-application-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
 
             <dependency>
                 <groupId>com.food.ordering.system</groupId>

@@ -11,12 +11,12 @@ import com.food.ordering.system.payment.service.domain.valueObject.CreditHistory
  * @author juliwolf
  */
 
-public class CreditHistoryEntity extends BaseEntity<CreditHistoryId> {
+public class CreditHistory extends BaseEntity<CreditHistoryId> {
   private final CustomerId customerId;
   private final Money amount;
   private final TransactionType transactionType;
 
-  private CreditHistoryEntity (Builder builder) {
+  private CreditHistory (Builder builder) {
    setId(builder.creditHistoryId);
     customerId = builder.customerId;
     amount = builder.amount;
@@ -68,8 +68,8 @@ public class CreditHistoryEntity extends BaseEntity<CreditHistoryId> {
       return this;
     }
 
-    public CreditHistoryEntity build () {
-      return new CreditHistoryEntity(this);
+    public CreditHistory build () {
+      return new CreditHistory(this);
     }
   }
 }

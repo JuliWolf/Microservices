@@ -2,10 +2,14 @@ package com.food.ordering.system.payment.service.domain;
 
 
 import java.util.*;
-import com.food.ordering.system.payment.service.domain.entity.CreditEntity;
-import com.food.ordering.system.payment.service.domain.entity.CreditHistoryEntity;
+import com.food.ordering.system.domain.event.publisher.DomainEventPublisher;
+import com.food.ordering.system.payment.service.domain.entity.CreditEntry;
+import com.food.ordering.system.payment.service.domain.entity.CreditHistory;
 import com.food.ordering.system.payment.service.domain.entity.Payment;
+import com.food.ordering.system.payment.service.domain.event.PaymentCancelledEvent;
+import com.food.ordering.system.payment.service.domain.event.PaymentCompletedEvent;
 import com.food.ordering.system.payment.service.domain.event.PaymentEvent;
+import com.food.ordering.system.payment.service.domain.event.PaymentFailedEvent;
 
 /**
  * @author juliwolf
@@ -14,15 +18,19 @@ import com.food.ordering.system.payment.service.domain.event.PaymentEvent;
 public interface PaymentDomainService {
   PaymentEvent validateAndInitiatePayment (
     Payment payment,
-    CreditEntity creditEntity,
-    List<CreditHistoryEntity> creditHistories,
-    List<String> failureMessages
+    CreditEntry creditEntry,
+    List<CreditHistory> creditHistories,
+    List<String> failureMessages,
+    DomainEventPublisher<PaymentCompletedEvent> paymentCompletedEventDomainEventPublisher,
+    DomainEventPublisher<PaymentFailedEvent> paymentFailedEventDomainEventPublisher
   );
 
   PaymentEvent validateAndCancelPayment (
     Payment payment,
-    CreditEntity creditEntity,
-    List<CreditHistoryEntity> creditHistories,
-    List<String> failureMessages
+    CreditEntry creditEntry,
+    List<CreditHistory> creditHistories,
+    List<String> failureMessages,
+    DomainEventPublisher<PaymentCancelledEvent> paymentCancelledEventDomainEventPublisher,
+    DomainEventPublisher<PaymentFailedEvent> paymentFailedEventDomainEventPublisher
   );
 }

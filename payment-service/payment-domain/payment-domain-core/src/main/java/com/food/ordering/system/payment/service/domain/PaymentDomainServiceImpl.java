@@ -4,10 +4,11 @@ package com.food.ordering.system.payment.service.domain;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
+import com.food.ordering.system.domain.event.publisher.DomainEventPublisher;
 import com.food.ordering.system.domain.valueObject.Money;
 import com.food.ordering.system.domain.valueObject.PaymentStatus;
-import com.food.ordering.system.payment.service.domain.entity.CreditEntity;
-import com.food.ordering.system.payment.service.domain.entity.CreditHistoryEntity;
+import com.food.ordering.system.payment.service.domain.entity.CreditEntry;
+import com.food.ordering.system.payment.service.domain.entity.CreditHistory;
 import com.food.ordering.system.payment.service.domain.entity.Payment;
 import com.food.ordering.system.payment.service.domain.event.PaymentCancelledEvent;
 import com.food.ordering.system.payment.service.domain.event.PaymentCompletedEvent;
@@ -25,78 +26,81 @@ import static com.food.ordering.system.domain.DomainConstants.UTC;
 
 @Slf4j
 public class PaymentDomainServiceImpl implements PaymentDomainService {
-  @Override
   public PaymentEvent validateAndInitiatePayment (
     Payment payment,
-    CreditEntity creditEntity,
-    List<CreditHistoryEntity> creditHistories,
-    List<String> failureMessages
+    CreditEntry creditEntry,
+    List<CreditHistory> creditHistories,
+    List<String> failureMessages,
+    DomainEventPublisher<PaymentCompletedEvent> paymentCompletedEventDomainEventPublisher,
+    DomainEventPublisher<PaymentFailedEvent> paymentFailedEventDomainEventPublisher
   ) {
     payment.validatePayment(failureMessages);
     payment.initializePayment();
 
-    validateCreditEntry(payment, creditEntity, failureMessages);
-    subtractCreditEntry(payment, creditEntity);
+    validateCreditEntry(payment, creditEntry, failureMessages);
+    subtractCreditEntry(payment, creditEntry);
     updateCreditHistory(payment, creditHistories, TransactionType.DEBIT);
-    validateCreditHistory(creditEntity, creditHistories, failureMessages);
+    validateCreditHistory(creditEntry, creditHistories, failureMessages);
 
     if (failureMessages.isEmpty()) {
       log.info("Payment is initiated for order id: {}", payment.getOrderId().getValue());
       payment.updateStatus(PaymentStatus.COMPLETED);
 
-      return new PaymentCompletedEvent(payment, ZonedDateTime.now(ZoneId.of(UTC)));
+      return new PaymentCompletedEvent(payment, ZonedDateTime.now(ZoneId.of(UTC)), paymentCompletedEventDomainEventPublisher);
     }
 
     log.info("Payment initiation is failed for order id: {}", payment.getOrderId().getValue());
     payment.updateStatus(PaymentStatus.FAILED);
-    return new PaymentFailedEvent(payment, ZonedDateTime.now(ZoneId.of(UTC)), failureMessages);
+    return new PaymentFailedEvent(payment, ZonedDateTime.now(ZoneId.of(UTC)), failureMessages, paymentFailedEventDomainEventPublisher);
   }
 
   @Override
   public PaymentEvent validateAndCancelPayment (
     Payment payment,
-    CreditEntity creditEntity,
-    List<CreditHistoryEntity> creditHistories,
-    List<String> failureMessages
+    CreditEntry creditEntry,
+    List<CreditHistory> creditHistories,
+    List<String> failureMessages,
+    DomainEventPublisher<PaymentCancelledEvent> paymentCancelledEventDomainEventPublisher,
+    DomainEventPublisher<PaymentFailedEvent> paymentFailedEventDomainEventPublisher
   ) {
     payment.validatePayment(failureMessages);
-    addCreditEntry(payment, creditEntity);
+    addCreditEntry(payment, creditEntry);
     updateCreditHistory(payment, creditHistories, TransactionType.CREDIT);
 
     if (failureMessages.isEmpty()) {
       log.info("Payment is cancelled fo order id: {}", payment.getOrderId().getValue());
       payment.updateStatus(PaymentStatus.CANCELLED);
 
-      return new PaymentCancelledEvent(payment, ZonedDateTime.now(ZoneId.of(UTC)));
+      return new PaymentCancelledEvent(payment, ZonedDateTime.now(ZoneId.of(UTC)), paymentCancelledEventDomainEventPublisher);
     }
 
     log.info("Payment cancellation os failed for order id: {}", payment.getOrderId().getValue());
     payment.updateStatus(PaymentStatus.FAILED);
-    return new PaymentFailedEvent(payment, ZonedDateTime.now(ZoneId.of(UTC)), failureMessages);
+    return new PaymentFailedEvent(payment, ZonedDateTime.now(ZoneId.of(UTC)), failureMessages, paymentFailedEventDomainEventPublisher);
   }
 
   private void validateCreditEntry (
     Payment payment,
-    CreditEntity creditEntity,
+    CreditEntry creditEntry,
     List<String> failureMessages
   ) {
-    if (payment.getPrice().isGreaterThan(creditEntity.getTotalCreditAmount())) {
+    if (payment.getPrice().isGreaterThan(creditEntry.getTotalCreditAmount())) {
       log.error("Customer with id: {} doesn't have enough credit for payment!", payment.getCustomerId().getValue());
 
       failureMessages.add("Customer with id=" + payment.getCustomerId().getValue() + " doesn't have enough credit for payment!");
     }
   }
 
-  private void subtractCreditEntry (Payment payment, CreditEntity creditEntity) {
-    creditEntity.subtractCreditAmount(payment.getPrice());
+  private void subtractCreditEntry (Payment payment, CreditEntry creditEntry) {
+    creditEntry.subtractCreditAmount(payment.getPrice());
   }
 
   private void updateCreditHistory (
     Payment payment,
-    List<CreditHistoryEntity> creditHistories,
+    List<CreditHistory> creditHistories,
     TransactionType transactionType
   ) {
-    creditHistories.add(CreditHistoryEntity.Builder.builder()
+    creditHistories.add(CreditHistory.Builder.builder()
       .creditHistoryId(new CreditHistoryId(UUID.randomUUID()))
       .customerId(payment.getCustomerId())
       .amount(payment.getPrice())
@@ -106,37 +110,37 @@ public class PaymentDomainServiceImpl implements PaymentDomainService {
   }
 
   private void validateCreditHistory (
-    CreditEntity creditEntity,
-    List<CreditHistoryEntity> creditHistories,
+    CreditEntry creditEntry,
+    List<CreditHistory> creditHistories,
     List<String> failureMessages
   ) {
     Money totalCreditHistory = getTotalHistoryAmount(creditHistories, TransactionType.CREDIT);
     Money totalDebitHistory = getTotalHistoryAmount(creditHistories, TransactionType.DEBIT);
 
     if (totalDebitHistory.isGreaterThan(totalCreditHistory)) {
-      log.error("Customer with id: {} doesn't have enough credit according to credit history", creditEntity.getCustomerId().getValue());
+      log.error("Customer with id: {} doesn't have enough credit according to credit history", creditEntry.getCustomerId().getValue());
 
-      failureMessages.add("Customer with id=" + creditEntity.getCustomerId().getValue() + " doesn't have enough credit according to credit history");
+      failureMessages.add("Customer with id=" + creditEntry.getCustomerId().getValue() + " doesn't have enough credit according to credit history");
     }
 
-    if (!creditEntity.getTotalCreditAmount().equals(totalCreditHistory.substract(totalDebitHistory))) {
-      log.error("Credit history total is not equal to current credit for customer id: {}!", creditEntity.getCustomerId().getValue());
+    if (!creditEntry.getTotalCreditAmount().equals(totalCreditHistory.substract(totalDebitHistory))) {
+      log.error("Credit history total is not equal to current credit for customer id: {}!", creditEntry.getCustomerId().getValue());
 
-      failureMessages.add("Credit history total is not equal to current credit for customer id=" + creditEntity.getCustomerId().getValue());
+      failureMessages.add("Credit history total is not equal to current credit for customer id=" + creditEntry.getCustomerId().getValue());
     }
   }
 
   private Money getTotalHistoryAmount (
-    List<CreditHistoryEntity> creditHistoryEntities,
+    List<CreditHistory> creditHistoryEntities,
     TransactionType transactionType
   ) {
     return creditHistoryEntities.stream()
       .filter(creditHistory -> transactionType == creditHistory.getTransactionType())
-      .map(CreditHistoryEntity::getAmount)
+      .map(CreditHistory::getAmount)
       .reduce(Money.ZERO, Money::add);
   }
 
-  private void addCreditEntry (Payment payment, CreditEntity creditEntity) {
-    creditEntity.addCreditAmount(payment.getPrice());
+  private void addCreditEntry (Payment payment, CreditEntry creditEntry) {
+    creditEntry.addCreditAmount(payment.getPrice());
   }
 }

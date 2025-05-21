@@ -8,8 +8,8 @@ import com.food.ordering.system.domain.valueObject.BaseId;
  * @author juliwolf
  */
 
-public class CreditEntityId extends BaseId<UUID> {
-  public CreditEntityId (UUID value) {
+public class CreditEntryId extends BaseId<UUID> {
+  public CreditEntryId (UUID value) {
     super(value);
   }
 }
